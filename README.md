@@ -12,7 +12,6 @@ OW-GSM targets long-horizon multivariate time-series forecasting with a learnabl
 ## Contents
 
 - [Overview](#overview)
-- [Release Status](#release-status)
 - [Repository Layout](#repository-layout)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -35,19 +34,6 @@ Long-term forecasting requires models to capture local continuity, long-range te
 - A gated fusion layer combines trend and detail features before forecasting.
 
 The code is organized so OW-GSM and all baselines consume the same tensors with shape `(batch, seq_len, channels)` and return forecasts with shape `(batch, pred_len, channels)`.
-
-## Release Status
-
-| Component | Status |
-| --- | --- |
-| Benchmark datasets | Available |
-| Unified data loader | Available |
-| OW-GSM implementation | Available |
-| In-repo baseline implementations | Available |
-| Training and evaluation CLI | Available |
-| Paper-aligned OW-GSM defaults | Available |
-| Paper checkpoints and logs | Pending |
-| Full paper citation | Pending |
 
 ## Repository Layout
 
@@ -207,9 +193,7 @@ The repository includes compact baseline implementations with a shared training 
 
 ## Datasets
 
-The current benchmark suite covers electricity transformer monitoring, financial exchange-rate dynamics, and meteorological observations. All files are chronological CSV time series and can be consumed by standard long-term forecasting data loaders.
-
-### Summary
+The benchmark CSV files are already included under `dataset/`. Rows are chronological, the first column is `date`, and non-date columns are numeric variables. Missing numerical values, if any, are linearly interpolated by `data_utils/loader.py` before train-only normalization.
 
 | Dataset | File | Domain | Frequency | Time Span in This Repo | Time Steps | Variables | Default Target |
 | --- | --- | --- | --- | --- | ---: | ---: | --- |
@@ -220,59 +204,13 @@ The current benchmark suite covers electricity transformer monitoring, financial
 | Exchange | `dataset/exchange.csv` | Exchange rates | 1 day | 1990-01-01 00:00 to 2010-10-10 00:00 | 7,588 | 8 | `OT` |
 | Weather | `dataset/weather.csv` | Meteorology | 10 minutes | 2020-01-01 00:10 to 2021-01-01 00:00 | 52,696 | 21 | `OT` |
 
-`Variables` excludes the timestamp column `date`. In multivariate forecasting, all numeric channels are used as model inputs. In multi-to-single settings, `OT` is the conventional target column used by many LTSF repositories.
+`Variables` excludes `date`. In multivariate forecasting (`features=M`), all numeric variables are predicted jointly. In multi-to-single settings (`features=MS`), `OT` is the conventional target column.
 
-### File Format
+Data provenance:
 
-Each CSV follows:
-
-```text
-date,<variable_1>,<variable_2>,...,<target_or_last_variable>
-```
-
-Data handling notes:
-
-- Rows are sorted chronologically.
-- The first column is always `date`.
-- Non-date columns are floating-point values.
-- Missing numerical values, if any, are linearly interpolated before normalization.
-- Time zones are not encoded; treat timestamps as naive timestamps unless an experiment defines otherwise.
-- The local CSV files were checked for empty-field patterns; none were found.
-- Keep original file names and column names when using standard benchmark loaders.
-
-### ETT: Electricity Transformer Temperature
-
-The ETT datasets originate from [ETDataset](https://github.com/zhouhaoyi/ETDataset), introduced with Informer. They contain measurements from two electricity transformers at two stations in two regions of a province in China. Each record includes the timestamp, six load-related variables, and transformer oil temperature.
-
-The four local files are the standard ETT-small benchmark variants:
-
-- `ETTh1.csv` and `ETTh2.csv`: hourly observations from transformer 1 and transformer 2.
-- `ETTm1.csv` and `ETTm2.csv`: 15-minute observations from transformer 1 and transformer 2.
-
-Column definitions:
-
-| Column | Meaning |
-| --- | --- |
-| `date` | Recorded timestamp |
-| `HUFL` | High useful load |
-| `HULL` | High useless load |
-| `MUFL` | Middle useful load |
-| `MULL` | Middle useless load |
-| `LUFL` | Low useful load |
-| `LULL` | Low useless load |
-| `OT` | Oil temperature, the canonical ETT target |
-
-### Exchange
-
-The Exchange dataset follows the multivariate time-series benchmark released in [laiguokun/multivariate-time-series-data](https://github.com/laiguokun/multivariate-time-series-data), used by LSTNet. It contains daily exchange-rate series for eight countries or regions commonly described as Australia, Britain, Canada, Switzerland, China, Japan, New Zealand, and Singapore.
-
-The local file `exchange.csv` stores one timestamp column and eight numerical series. Columns `0` to `6` and `OT` are the eight exchange-rate variables. For this dataset, `OT` is only the benchmark target-name convention for the last variable; it does not mean oil temperature.
-
-### Weather
-
-The Weather benchmark is distributed in common long-term forecasting repositories such as [Autoformer](https://github.com/thuml/Autoformer). It is derived from the weather station of the Max Planck Institute for Biogeochemistry in Jena, Germany. The station is located on the Beutenberg campus and records meteorological variables including temperature, humidity, pressure, wind, precipitation, solar radiation, and PAR-related measurements.
-
-The local file `weather.csv` contains 21 numerical variables sampled every 10 minutes. Columns include pressure, temperature, dew point, relative humidity, vapor-pressure measurements, air density, wind speed and direction, rain, radiation, PAR variables, `Tlog`, and the benchmark target column `OT`.
+- ETT: [ETDataset](https://github.com/zhouhaoyi/ETDataset), introduced with Informer.
+- Exchange: [multivariate-time-series-data](https://github.com/laiguokun/multivariate-time-series-data), used by LSTNet.
+- Weather: distributed with [Autoformer](https://github.com/thuml/Autoformer), derived from the Max Planck Institute for Biogeochemistry weather station in Jena.
 
 ## Benchmark Protocol
 
