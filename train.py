@@ -41,6 +41,8 @@ PAPER_DATASET_CONFIGS = {
 
 @dataclass
 class ExperimentConfig:
+    """Single experiment contract shared by JSON configs and CLI overrides."""
+
     model: str = "owgsm"
     dataset: str = "ETTh1"
     root_path: str = "."
@@ -104,6 +106,8 @@ def canonical_model_name(model_name: str) -> str:
 
 
 def build_model(config: ExperimentConfig, n_channels: int) -> nn.Module:
+    """Instantiate OW-GSM or a baseline behind the same forecasting interface."""
+
     key = canonical_model_name(config.model)
     if key in {"owgsm", "mambastat", "mambastatfusion"}:
         return OWGSM(
@@ -144,6 +148,8 @@ def align_prediction_and_target(
     target: torch.Tensor,
     bundle: DataBundle,
 ) -> tuple[torch.Tensor, torch.Tensor]:
+    """Handle M/MS settings where the model predicts all channels but the target is one channel."""
+
     if pred.size(-1) == target.size(-1):
         return pred, target
     if target.size(-1) == 1 and bundle.target_index is not None:
@@ -154,6 +160,8 @@ def align_prediction_and_target(
 
 
 def evaluate(model: nn.Module, data_loader, bundle: DataBundle, device: torch.device) -> dict[str, float]:
+    """Compute paper metrics over all predicted values."""
+
     model.eval()
     mse_sum = 0.0
     mae_sum = 0.0
@@ -183,6 +191,8 @@ def train_one_epoch(
     device: torch.device,
     config: ExperimentConfig,
 ) -> float:
+    """One optimization pass: forecast, align targets, add OW-GSM auxiliary losses, update."""
+
     model.train()
     total_loss = 0.0
     total_batches = 0
@@ -223,6 +233,8 @@ def print_wavelet_stats(model: nn.Module, test_loader, device: torch.device) -> 
 
 
 def train_model(config: ExperimentConfig) -> dict[str, float]:
+    """End-to-end experiment runner used by both config files and CLI calls."""
+
     set_seed(config.seed)
     dataset_name = canonical_dataset_name(config.dataset)
     device = get_device(config.gpu, config.use_cpu)
@@ -315,6 +327,8 @@ def train_model(config: ExperimentConfig) -> dict[str, float]:
 
 
 def load_config_file(path: str | None) -> dict:
+    """Read a JSON config file; CLI arguments can override the returned values."""
+
     if path is None:
         return {}
     with Path(path).open("r", encoding="utf-8") as handle:
@@ -325,6 +339,8 @@ def load_config_file(path: str | None) -> dict:
 
 
 def build_experiment_config(overrides: dict) -> ExperimentConfig:
+    """Merge defaults, paper dataset hyperparameters, config file values, and CLI overrides."""
+
     valid_fields = {field.name for field in fields(ExperimentConfig)}
     unknown = sorted(key for key in overrides if key not in valid_fields)
     if unknown:
@@ -345,6 +361,8 @@ def build_experiment_config(overrides: dict) -> ExperimentConfig:
 
 
 def collect_cli_overrides(args: argparse.Namespace) -> dict:
+    """Keep only CLI arguments explicitly provided by the user."""
+
     ignored = {"config", "print_config"}
     return {
         key: value

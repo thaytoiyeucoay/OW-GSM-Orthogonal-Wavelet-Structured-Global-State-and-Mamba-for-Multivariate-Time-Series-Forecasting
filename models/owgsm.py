@@ -304,21 +304,30 @@ class OWGSM(nn.Module):
         if channels != self.input_dim:
             raise ValueError(f"Expected {self.input_dim} channels, got {channels}.")
 
+        # Work on relative changes, then restore the last observed value at the end.
         last_value = x[:, -1:, :].detach()
         centered = x - last_value
         if self.training and self.input_jitter > 0:
             centered = centered + torch.randn_like(centered) * self.input_jitter
 
+        # Remove instance-level non-stationary statistics before decomposition.
         normalized = self.revin(centered, mode="norm")
+
+        # Split the signal into low-frequency approximation and high-frequency detail bands.
         approximation, detail = self.wavelet(normalized)
 
+        # Trend branch: retrieve stable global prototypes for slowly varying components.
         trend = self.trend_embed(approximation.permute(0, 2, 1))
         trend = self.trend_global(trend)
+
+        # Detail branch: tokenize local fluctuations and scan them in both directions.
         detail_features = self.detail_encoder(detail)
 
+        # Adaptive fusion keeps trend as the anchor and injects detail only when useful.
         gate = self.fusion_gate(torch.cat([trend, detail_features], dim=-1))
         fused = trend + gate * detail_features
 
+        # Each channel has its own lightweight decoder to avoid noisy cross-channel projection.
         outputs = [decoder(fused[:, channel, :]) for channel, decoder in enumerate(self.projections)]
         prediction = torch.stack(outputs, dim=-1)
         prediction = self.revin(prediction, mode="denorm") + last_value
@@ -347,6 +356,7 @@ class OWGSM(nn.Module):
         wavelet_weight: float = 0.01,
         feature_weight: float = 0.1,
     ) -> torch.Tensor:
+        # Paper objective: encourage wavelet-like filters and trend/detail disentanglement.
         return (
             wavelet_weight * self.wavelet.regularization_loss()
             + feature_weight * self.feature_disentanglement_loss()

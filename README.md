@@ -13,6 +13,7 @@ OW-GSM targets long-horizon multivariate time-series forecasting with a learnabl
 
 - [Overview](#overview)
 - [Repository Layout](#repository-layout)
+- [Code Overview](#code-overview)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Implemented Models](#implemented-models)
@@ -84,6 +85,78 @@ Core files:
 - `configs/<model>/`: JSON experiment configs grouped by model.
 - `models/baselines.py`: baseline registry and factory.
 - `models/<baseline>.py`: one implementation file per baseline.
+
+## Code Overview
+
+The codebase is split by responsibility so experiments can be extended without editing the model internals.
+
+| Path | Purpose |
+| --- | --- |
+| `train.py` | Main experiment launcher. It reads JSON configs, applies CLI overrides, builds the selected model, loads data, trains, evaluates, and saves checkpoints. |
+| `models/owgsm.py` | OW-GSM architecture. It contains RevIN, learnable wavelet decomposition, Global State Register, bidirectional detail encoder, gated fusion, decoder, auxiliary losses, and wavelet diagnostics. |
+| `models/baselines.py` | Model registry. It maps names such as `patchtst` or `dlinear` to their implementation files. |
+| `models/<baseline>.py` | Individual baseline implementations. Each file exposes one model with the same input/output interface as OW-GSM. |
+| `data_utils/registry.py` | Dataset aliases, expected filenames, frequencies, and file discovery. |
+| `data_utils/splits.py` | Chronological train/validation/test split policies. |
+| `data_utils/datasets.py` | Sliding-window PyTorch dataset for `(input_window, target_window)` samples. |
+| `data_utils/loader.py` | CSV loading, numeric column selection, interpolation, train-only normalization, and DataLoader construction. |
+| `configs/<model>/` | Model-specific JSON experiment configs. Config values can be overridden from the CLI. |
+
+Execution flow:
+
+```text
+config JSON / CLI
+  -> train.py
+  -> data_utils.load_forecasting_data(...)
+  -> models.baselines.build_baseline_model(...) or models.owgsm.OWGSM(...)
+  -> train / validation / test
+  -> checkpoint + metrics
+```
+
+### Source Snippets
+
+A few key source snippets are shown below to make the code easier to navigate.
+
+`train.py` merges JSON configs and CLI overrides into a single experiment object:
+
+```python
+file_overrides = load_config_file(args.config)
+cli_overrides = collect_cli_overrides(args)
+config = build_experiment_config({**file_overrides, **cli_overrides})
+```
+
+This lets each model keep a clean config file under `configs/<model>/`, while still allowing quick overrides such as `--dataset Weather --pred_len 192`.
+
+`data_utils/loader.py` fits normalization statistics only on the training split:
+
+```python
+train_values = all_values[split.train[0] : split.train[1]]
+mean = train_values.mean(axis=0)
+std = train_values.std(axis=0) + 1e-5
+normalized_all = (all_values - mean) / std
+```
+
+This avoids validation/test leakage and keeps every model on the same preprocessing protocol.
+
+`models/owgsm.py` performs the paper's signal-structured split:
+
+```python
+normalized = self.revin(centered, mode="norm")
+approximation, detail = self.wavelet(normalized)
+trend = self.trend_global(self.trend_embed(approximation.permute(0, 2, 1)))
+detail_features = self.detail_encoder(detail)
+```
+
+The low-frequency approximation is routed to the Global State Register, while the high-frequency detail component is routed to the bidirectional detail encoder.
+
+`models/owgsm.py` then fuses the two branches with an adaptive gate:
+
+```python
+gate = self.fusion_gate(torch.cat([trend, detail_features], dim=-1))
+fused = trend + gate * detail_features
+```
+
+The trend branch remains the stable backbone, and the gate decides how much detail information should refine each channel.
 
 ## Installation
 

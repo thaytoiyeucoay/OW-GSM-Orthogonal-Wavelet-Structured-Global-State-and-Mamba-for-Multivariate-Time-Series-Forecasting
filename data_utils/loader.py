@@ -92,15 +92,22 @@ def load_forecasting_data(
     drop_last: bool = True,
     pin_memory: bool = False,
 ) -> DataBundle:
+    """Build train/val/test loaders with the same preprocessing for every model."""
+
+    # Resolve aliases such as exchange_rate -> Exchange and locate the CSV file.
     canonical = canonical_dataset_name(dataset_name)
     data_path = find_dataset_file(canonical, root_path=root_path)
     numeric = load_numeric_frame(data_path)
+
+    # Choose M/S/MS feature mode before slicing windows.
     x_frame, y_frame, target_name, target_index = select_features(
         numeric, feature_mode=feature_mode, target=target
     )
 
+    # Create chronological splits with lookback buffers for validation/test windows.
     split = get_split_indices(canonical, len(numeric), seq_len, split_policy=split_policy)
 
+    # Fit normalization on training rows only to avoid validation/test leakage.
     all_values = numeric.to_numpy(dtype=np.float32)
     train_values = all_values[split.train[0] : split.train[1]]
     mean = train_values.mean(axis=0)
@@ -118,6 +125,7 @@ def load_forecasting_data(
     test_x = x_values[split.test[0] : split.test[1]]
     test_y = y_values[split.test[0] : split.test[1]]
 
+    # Convert continuous arrays into sliding-window forecasting datasets.
     loader_kwargs = {
         "batch_size": batch_size,
         "num_workers": num_workers,
