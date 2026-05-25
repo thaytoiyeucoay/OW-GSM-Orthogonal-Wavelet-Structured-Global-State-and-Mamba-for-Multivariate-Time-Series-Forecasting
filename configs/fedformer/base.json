@@ -1,0 +1,17 @@
+{
+  "model": "fedformer",
+  "dataset": "ETTh1",
+  "root_path": ".",
+  "save_dir": "checkpoints/fedformer",
+  "seq_len": 720,
+  "pred_len": 96,
+  "batch_size": 32,
+  "dropout": 0.1,
+  "moving_avg": 25,
+  "modes": 32,
+  "epochs": 10,
+  "patience": 5,
+  "features": "M",
+  "target": "OT",
+  "split_policy": "standard"
+}

@@ -1,0 +1,21 @@
+{
+  "model": "timexer",
+  "dataset": "ETTh1",
+  "root_path": ".",
+  "save_dir": "checkpoints/timexer",
+  "seq_len": 720,
+  "pred_len": 96,
+  "batch_size": 32,
+  "d_model": 128,
+  "d_ff": 256,
+  "n_heads": 8,
+  "e_layers": 2,
+  "dropout": 0.1,
+  "patch_len": 16,
+  "patch_stride": 8,
+  "epochs": 10,
+  "patience": 5,
+  "features": "M",
+  "target": "OT",
+  "split_policy": "standard"
+}

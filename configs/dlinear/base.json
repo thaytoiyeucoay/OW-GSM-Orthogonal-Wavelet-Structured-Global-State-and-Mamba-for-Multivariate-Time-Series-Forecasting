@@ -1,0 +1,15 @@
+{
+  "model": "dlinear",
+  "dataset": "ETTh1",
+  "root_path": ".",
+  "save_dir": "checkpoints/dlinear",
+  "seq_len": 720,
+  "pred_len": 96,
+  "batch_size": 32,
+  "epochs": 10,
+  "patience": 5,
+  "features": "M",
+  "target": "OT",
+  "split_policy": "standard",
+  "moving_avg": 25
+}
