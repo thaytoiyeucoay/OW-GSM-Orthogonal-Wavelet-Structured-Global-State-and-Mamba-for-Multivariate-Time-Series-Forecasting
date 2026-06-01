@@ -332,14 +332,20 @@ class OWGSM(nn.Module):
         prediction = torch.stack(outputs, dim=-1)
         prediction = self.revin(prediction, mode="denorm") + last_value
 
-        self.last_components = {
-            "approximation": approximation,
-            "detail": detail,
+        components = {
             "trend": trend,
             "detail_features": detail_features,
-            "gate": gate,
-            "fused": fused,
         }
+        if return_components:
+            components.update(
+                {
+                    "approximation": approximation,
+                    "detail": detail,
+                    "gate": gate,
+                    "fused": fused,
+                }
+            )
+        self.last_components = components
         if return_components:
             return prediction, self.last_components
         return prediction

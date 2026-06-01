@@ -176,6 +176,18 @@ Train OW-GSM on ETTh1:
 python train.py --config configs/owgsm/paper.json
 ```
 
+Force training on your first CUDA GPU and fail fast if CUDA is not available:
+
+```bash
+python train.py --config configs/owgsm/paper.json --device cuda:0 --require_gpu
+```
+
+Mixed precision is enabled by default on CUDA to reduce VRAM usage. Disable it only if you need full FP32:
+
+```bash
+python train.py --config configs/owgsm/paper.json --device cuda:0 --no_amp
+```
+
 Override a config from the CLI:
 
 ```bash
@@ -206,6 +218,9 @@ Common arguments:
 | `--features` | `M`, `S`, or `MS` |
 | `--split_policy` | `standard` or `ratio` |
 | `--save_dir` | Checkpoint directory |
+| `--device` | `auto`, `cpu`, `cuda`, or `cuda:<index>` |
+| `--require_gpu` | Stop with an error instead of silently falling back to CPU |
+| `--amp` / `--no_amp` | Enable or disable CUDA mixed precision |
 
 By default, checkpoints are saved under `checkpoints/`.
 

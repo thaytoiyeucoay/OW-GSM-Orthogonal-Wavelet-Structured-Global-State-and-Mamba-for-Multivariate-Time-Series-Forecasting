@@ -8,9 +8,9 @@ AdamW, StepLR(step=3, gamma=0.5), MSE/MAE reporting, and checkpointing.
 from __future__ import annotations
 
 import argparse
-import copy
 import json
 import random
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
@@ -19,7 +19,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from data_utils import DataBundle, canonical_dataset_name, describe_bundle, load_forecasting_data
+from data_utils import DataBundle, canonical_dataset_name, load_forecasting_data
 from models.baselines import build_baseline_model, list_baselines
 from models.owgsm import (
     HorizonWeightedMSE,
@@ -60,8 +60,11 @@ class ExperimentConfig:
     epochs: int = 10
     patience: int = 5
     seed: int = 2026
+    device: str = "auto"
     gpu: int = 0
     use_cpu: bool = False
+    require_gpu: bool = False
+    amp: bool = True
     features: str = "M"
     target: str = "OT"
     split_policy: str = "standard"
@@ -91,14 +94,92 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
-def get_device(gpu_id: int = 0, use_cpu: bool = False) -> torch.device:
-    if not use_cpu and torch.cuda.is_available():
-        return torch.device(f"cuda:{gpu_id}")
-    return torch.device("cpu")
+def get_device(config: ExperimentConfig) -> torch.device:
+    """Resolve the requested training device with explicit CUDA diagnostics."""
+
+    requested = config.device.lower().strip()
+    if config.use_cpu or requested == "cpu":
+        return torch.device("cpu")
+
+    if requested == "auto":
+        if torch.cuda.is_available():
+            if config.gpu < 0 or config.gpu >= torch.cuda.device_count():
+                raise ValueError(
+                    f"CUDA device index {config.gpu} is unavailable; "
+                    f"this machine has {torch.cuda.device_count()} CUDA device(s)."
+                )
+            device = torch.device(f"cuda:{config.gpu}")
+            torch.cuda.set_device(device)
+            return device
+        if config.require_gpu:
+            raise RuntimeError(
+                "GPU training was required, but this PyTorch installation does not see CUDA. "
+                "Install a CUDA-enabled PyTorch build, then rerun without --cpu."
+            )
+        return torch.device("cpu")
+
+    if requested == "cuda":
+        requested = f"cuda:{config.gpu}"
+
+    if requested.startswith("cuda:"):
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                f"Device '{requested}' was requested, but torch.cuda.is_available() is False. "
+                "Install a CUDA-enabled PyTorch build that matches your NVIDIA driver."
+            )
+        try:
+            gpu_id = int(requested.split(":", maxsplit=1)[1])
+        except ValueError as exc:
+            raise ValueError(f"Invalid CUDA device string: {config.device}") from exc
+        if gpu_id < 0 or gpu_id >= torch.cuda.device_count():
+            raise ValueError(
+                f"CUDA device index {gpu_id} is unavailable; "
+                f"this machine has {torch.cuda.device_count()} CUDA device(s)."
+            )
+        device = torch.device(f"cuda:{gpu_id}")
+        torch.cuda.set_device(device)
+        return device
+
+    raise ValueError("device must be one of 'auto', 'cpu', 'cuda', or 'cuda:<index>'.")
+
+
+def autocast_context(device: torch.device, enabled: bool):
+    if not enabled or device.type != "cuda":
+        return nullcontext()
+    if hasattr(torch, "amp") and hasattr(torch.amp, "autocast"):
+        return torch.amp.autocast(device_type="cuda")
+    return torch.cuda.amp.autocast()
+
+
+def make_grad_scaler(enabled: bool):
+    if not enabled:
+        return None
+    if hasattr(torch, "amp") and hasattr(torch.amp, "GradScaler"):
+        return torch.amp.GradScaler("cuda")
+    return torch.cuda.amp.GradScaler()
+
+
+def move_to_device(x: torch.Tensor, y: torch.Tensor, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
+    non_blocking = device.type == "cuda"
+    return (
+        x.to(device, non_blocking=non_blocking),
+        y.to(device, non_blocking=non_blocking),
+    )
 
 
 def count_parameters(model: nn.Module) -> int:
     return sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
+
+
+def state_dict_to_cpu(model: nn.Module) -> dict[str, torch.Tensor]:
+    return {key: value.detach().cpu().clone() for key, value in model.state_dict().items()}
+
+
+def clear_model_runtime_state(model: nn.Module) -> None:
+    """Drop per-batch tensors cached by models for diagnostics or auxiliary losses."""
+
+    if hasattr(model, "last_components"):
+        model.last_components = {}
 
 
 def canonical_model_name(model_name: str) -> str:
@@ -159,7 +240,13 @@ def align_prediction_and_target(
     )
 
 
-def evaluate(model: nn.Module, data_loader, bundle: DataBundle, device: torch.device) -> dict[str, float]:
+def evaluate(
+    model: nn.Module,
+    data_loader,
+    bundle: DataBundle,
+    device: torch.device,
+    use_amp: bool = False,
+) -> dict[str, float]:
     """Compute paper metrics over all predicted values."""
 
     model.eval()
@@ -169,13 +256,18 @@ def evaluate(model: nn.Module, data_loader, bundle: DataBundle, device: torch.de
 
     with torch.no_grad():
         for x, y in data_loader:
-            x = x.to(device)
-            y = y.to(device)
-            pred = model(x)
-            pred, y = align_prediction_and_target(pred, y, bundle)
-            mse_sum += F.mse_loss(pred, y, reduction="sum").item()
-            mae_sum += F.l1_loss(pred, y, reduction="sum").item()
+            x, y = move_to_device(x, y, device)
+            with autocast_context(device, use_amp):
+                pred = model(x)
+                pred, y = align_prediction_and_target(pred, y, bundle)
+            pred = pred.float()
+            y = y.float()
+            mse = F.mse_loss(pred, y, reduction="sum")
+            mae = F.l1_loss(pred, y, reduction="sum")
+            mse_sum += mse.item()
+            mae_sum += mae.item()
             count += y.numel()
+            clear_model_runtime_state(model)
 
     if count == 0:
         raise RuntimeError("Evaluation loader produced zero targets.")
@@ -187,6 +279,7 @@ def train_one_epoch(
     data_loader,
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
+    scaler,
     bundle: DataBundle,
     device: torch.device,
     config: ExperimentConfig,
@@ -198,20 +291,29 @@ def train_one_epoch(
     total_batches = 0
 
     for x, y in data_loader:
-        x = x.to(device)
-        y = y.to(device)
+        x, y = move_to_device(x, y, device)
         optimizer.zero_grad(set_to_none=True)
-        pred = model(x)
-        pred, y = align_prediction_and_target(pred, y, bundle)
-        loss = criterion(pred, y)
-        if hasattr(model, "auxiliary_loss"):
-            loss = loss + model.auxiliary_loss(
-                wavelet_weight=config.wavelet_weight,
-                feature_weight=config.feature_weight,
-            )
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
+        with autocast_context(device, config.amp):
+            pred = model(x)
+            pred, y = align_prediction_and_target(pred, y, bundle)
+            loss = criterion(pred, y)
+            if hasattr(model, "auxiliary_loss"):
+                loss = loss + model.auxiliary_loss(
+                    wavelet_weight=config.wavelet_weight,
+                    feature_weight=config.feature_weight,
+                )
+        clear_model_runtime_state(model)
+
+        if scaler is None:
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+        else:
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            scaler.step(optimizer)
+            scaler.update()
         total_loss += loss.item()
         total_batches += 1
 
@@ -237,7 +339,10 @@ def train_model(config: ExperimentConfig) -> dict[str, float]:
 
     set_seed(config.seed)
     dataset_name = canonical_dataset_name(config.dataset)
-    device = get_device(config.gpu, config.use_cpu)
+    device = get_device(config)
+    amp_enabled = config.amp and device.type == "cuda"
+    if device.type == "cuda":
+        torch.backends.cudnn.benchmark = False
 
     bundle = load_forecasting_data(
         dataset_name=dataset_name,
@@ -251,12 +356,14 @@ def train_model(config: ExperimentConfig) -> dict[str, float]:
         num_workers=config.num_workers,
         pin_memory=device.type == "cuda",
     )
-    print(describe_bundle(bundle))
+    print(
+        f"{bundle.dataset_name}: train={len(bundle.train_loader.dataset)}, "
+        f"val={len(bundle.val_loader.dataset)}, test={len(bundle.test_loader.dataset)}"
+    )
 
     model = build_model(config, n_channels=bundle.n_channels).to(device)
     print(f"Model: {config.model}")
     print(f"Parameters: {count_parameters(model):,}")
-    print(f"Device: {device}")
 
     criterion = HorizonWeightedMSE(config.pred_len, alpha=config.horizon_alpha).to(device)
     optimizer = torch.optim.AdamW(
@@ -265,8 +372,9 @@ def train_model(config: ExperimentConfig) -> dict[str, float]:
         weight_decay=config.weight_decay,
     )
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.5)
+    scaler = make_grad_scaler(amp_enabled)
 
-    best_state = copy.deepcopy(model.state_dict())
+    best_state = state_dict_to_cpu(model)
     best_val = float("inf")
     best_epoch = 0
     wait = 0
@@ -277,17 +385,18 @@ def train_model(config: ExperimentConfig) -> dict[str, float]:
             data_loader=bundle.train_loader,
             criterion=criterion,
             optimizer=optimizer,
+            scaler=scaler,
             bundle=bundle,
             device=device,
             config=config,
         )
-        val_metrics = evaluate(model, bundle.val_loader, bundle, device)
+        val_metrics = evaluate(model, bundle.val_loader, bundle, device, use_amp=False)
 
         improved = val_metrics["mse"] < best_val
         if improved:
             best_val = val_metrics["mse"]
             best_epoch = epoch
-            best_state = copy.deepcopy(model.state_dict())
+            best_state = state_dict_to_cpu(model)
             wait = 0
         else:
             wait += 1
@@ -304,7 +413,7 @@ def train_model(config: ExperimentConfig) -> dict[str, float]:
             break
 
     model.load_state_dict(best_state)
-    test_metrics = evaluate(model, bundle.test_loader, bundle, device)
+    test_metrics = evaluate(model, bundle.test_loader, bundle, device, use_amp=False)
     print(f"Test MSE: {test_metrics['mse']:.6f}")
     print(f"Test MAE: {test_metrics['mae']:.6f}")
     print_wavelet_stats(model, bundle.test_loader, device)
@@ -395,8 +504,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--target", type=str, default=None)
     parser.add_argument("--split_policy", type=str, default=None, choices=["standard", "ratio"])
     parser.add_argument("--num_workers", type=int, default=None)
+    parser.add_argument("--device", type=str, default=None, help="auto, cpu, cuda, or cuda:<index>.")
     parser.add_argument("--gpu", type=int, default=None)
     parser.add_argument("--cpu", dest="use_cpu", action="store_true", default=None)
+    parser.add_argument("--require_gpu", "--require-gpu", dest="require_gpu", action="store_true", default=None)
+    amp_group = parser.add_mutually_exclusive_group()
+    amp_group.add_argument("--amp", dest="amp", action="store_true", default=None)
+    amp_group.add_argument("--no_amp", "--no-amp", dest="amp", action="store_false", default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--horizon_alpha", type=float, default=None)
     parser.add_argument("--wavelet_weight", type=float, default=None)
