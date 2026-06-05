@@ -293,7 +293,7 @@ Data provenance:
 
 - ETT: [ETDataset](https://github.com/zhouhaoyi/ETDataset), introduced with Informer.
 - Exchange: [multivariate-time-series-data](https://github.com/laiguokun/multivariate-time-series-data), used by LSTNet.
-- Weather: distributed with [Autoformer](https://github.com/thuml/Autoformer), derived from the Max Planck Institute for Biogeochemistry weather station in Jena.
+- Weather: distributed with the [Autoformer](https://github.com/thuml/Autoformer) benchmark.
 
 ## Benchmark Protocol
 
@@ -339,7 +339,7 @@ This repository uses standard public benchmarks from the long-term time-series f
 
 - ETT datasets from [ETDataset](https://github.com/zhouhaoyi/ETDataset).
 - Exchange data from [multivariate-time-series-data](https://github.com/laiguokun/multivariate-time-series-data).
-- Weather benchmark distributed with [Autoformer](https://github.com/thuml/Autoformer), derived from the Max Planck Institute for Biogeochemistry weather station in Jena.
+- Weather benchmark distributed with [Autoformer](https://github.com/thuml/Autoformer).
 
 We also acknowledge the official implementations of iTransformer, PatchTST, DLinear, TimeKAN, TimeXer, and FEDformer listed above.
 
@@ -354,7 +354,6 @@ We also acknowledge the official implementations of iTransformer, PatchTST, DLin
 - TimeKAN: https://github.com/huangst21/TimeKAN
 - TimeXer: https://github.com/thuml/TimeXer
 - FEDformer: https://github.com/MAZiqing/FEDformer
-- Original Weather station source: Jena Beutenberg station operated by the Max Planck Institute for Biogeochemistry, used as the upstream source for the public Weather benchmark distributed with Autoformer: https://www.bgc-jena.mpg.de/en/servicegroups/fieldexperiements/locations/beutenberg
 
 ## License
 
