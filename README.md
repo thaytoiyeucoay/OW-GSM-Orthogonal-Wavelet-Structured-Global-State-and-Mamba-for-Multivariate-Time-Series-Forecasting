@@ -28,6 +28,8 @@ Long-term forecasting requires models to capture local continuity, long-range te
 - The detail branch uses patch-level bidirectional Mamba-style encoding.
 - A gated fusion layer combines trend and detail features before forecasting.
 
+![OW-GSM architecture overview](figures/owgsm_core_layer.png)
+
 The code is organized so OW-GSM and all baselines consume the same tensors with shape `(batch, seq_len, channels)` and return forecasts with shape `(batch, pred_len, channels)`.
 
 ## Repository Layout
@@ -40,7 +42,8 @@ The code is organized so OW-GSM and all baselines consume the same tensors with 
 |   |-- ETTm1.csv
 |   |-- ETTm2.csv
 |   |-- exchange.csv
-|   `-- weather.csv
+|   |-- weather.csv
+|   `-- urban_power.csv
 |-- configs/
 |   |-- owgsm/
 |   |-- dlinear/
@@ -66,9 +69,12 @@ The code is organized so OW-GSM and all baselines consume the same tensors with 
 |   |-- patchtst.py
 |   |-- timekan.py
 |   `-- timexer.py
+|-- figures/
+|   `-- owgsm_core_layer.png
 |-- train.py
 |-- requirements.txt
-`-- README.md
+|-- README.md
+`-- LICENSE
 ```
 
 Core files:
