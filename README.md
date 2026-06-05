@@ -1,6 +1,6 @@
-# OW-GSM: Orthogonal Wavelet-Structured Global State and Mamba for Multivariate Time Series Forecasting
+# OW-GSM: Orthogonal Wavelet-Structured Global State and Mamba-Style Forecasting
 
-Official repository for **OW-GSM: Orthogonal Wavelet-Structured Global State and Mamba for Multivariate Time Series Forecasting**.
+Official repository for **OW-GSM: Orthogonal Wavelet-Structured Global State and Mamba-Style Forecasting**.
 
 OW-GSM targets long-horizon multivariate time-series forecasting with a learnable orthogonal wavelet split, a structured global state branch, and a lightweight Mamba-style detail branch. The repository now includes the OW-GSM implementation, unified data loading, compact in-repo baselines, and benchmark datasets.
 
@@ -212,7 +212,7 @@ Common arguments:
 | --- | --- |
 | `--config` | JSON config path; CLI arguments override the file |
 | `--model` | `owgsm`, `itransformer`, `patchtst`, `dlinear`, `timekan`, `timexer`, or `fedformer` |
-| `--dataset` | `ETTh1`, `ETTh2`, `ETTm1`, `ETTm2`, `Exchange`, or `Weather` |
+| `--dataset` | `ETTh1`, `ETTh2`, `ETTm1`, `ETTm2`, `Exchange`, `Weather`, or `UrbanPower` |
 | `--seq_len` | Lookback length |
 | `--pred_len` | Forecast horizon |
 | `--features` | `M`, `S`, or `MS` |
@@ -281,7 +281,7 @@ The repository includes compact baseline implementations with a shared training 
 
 ## Datasets
 
-The benchmark CSV files are already included under `dataset/`. Rows are chronological, the first column is `date`, and non-date columns are numeric variables. Missing numerical values, if any, are linearly interpolated by `data_utils/loader.py` before train-only normalization.
+The benchmark CSV files are already included under `dataset/`. Rows are chronological, the first column is a timestamp-like column (`date` or `timestamp`), and non-time columns are numeric variables. Missing numerical values, if any, are linearly interpolated by `data_utils/loader.py` before train-only normalization.
 
 | Dataset | File | Domain | Frequency | Time Span in This Repo | Time Steps | Variables | Default Target |
 | --- | --- | --- | --- | --- | ---: | ---: | --- |
@@ -291,8 +291,9 @@ The benchmark CSV files are already included under `dataset/`. Rows are chronolo
 | ETTm2 | `dataset/ETTm2.csv` | Electricity transformer | 15 minutes | 2016-07-01 00:00 to 2018-06-26 19:45 | 69,680 | 7 | `OT` |
 | Exchange | `dataset/exchange.csv` | Exchange rates | 1 day | 1990-01-01 00:00 to 2010-10-10 00:00 | 7,588 | 8 | `OT` |
 | Weather | `dataset/weather.csv` | Meteorology | 10 minutes | 2020-01-01 00:10 to 2021-01-01 00:00 | 52,696 | 21 | `OT` |
+| UrbanPower | `dataset/urban_power.csv` | Anonymized urban electricity and weather factors | 1 hour | 2020-01-01 00:00 to 2025-05-31 00:00 | 47,449 | 14 | `total_consumption_mw` |
 
-`Variables` excludes `date`. In multivariate forecasting (`features=M`), all numeric variables are predicted jointly. In multi-to-single settings (`features=MS`), `OT` is the conventional target column.
+`Variables` excludes the timestamp column. In multivariate forecasting (`features=M`), all numeric variables are predicted jointly. In multi-to-single settings (`features=MS`), `OT` is the conventional target column for the public benchmarks, while UrbanPower uses `total_consumption_mw`.
 
 Data provenance:
 
@@ -344,7 +345,7 @@ Please cite OW-GSM once the paper citation is available:
 
 ```bibtex
 @misc{owgsm2026,
-  title  = {OW-GSM: Orthogonal Wavelet-Structured Global State and Mamba for Multivariate Time Series Forecasting},
+  title  = {OW-GSM: Orthogonal Wavelet-Structured Global State and Mamba-Style Forecasting},
   author = {OW-GSM Authors},
   year   = {2026},
   note   = {Citation will be updated after publication}
@@ -407,4 +408,6 @@ We also acknowledge the official implementations of iTransformer, PatchTST, DLin
 
 ## License
 
-The repository license will be specified with the code release. Dataset usage should also follow the terms and licenses of the corresponding upstream dataset providers.
+This repository is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+
+Dataset usage should also follow the terms and licenses of the corresponding upstream dataset providers.

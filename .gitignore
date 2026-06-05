@@ -13,3 +13,31 @@ logs/
 .env
 .venv/
 venv/
+
+# Paper drafts and local report artifacts
+IEEE-conference-template-062824/
+*.tex
+*.aux
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.log
+*.synctex.gz
+
+# Local experiment scratch files
+tuning/
+tune_*.py
+check_*.py
+generate_table.py
+table_*results*.tex
+run_experiments.py
+
+# Generated analysis figures and external reference PDFs
+figures/*training*.png
+figures/*_720_*.png
+figures/*prompt*.png
+dataset/*.pdf
+
+# Derived search configs
+configs/owgsm/*_best.json

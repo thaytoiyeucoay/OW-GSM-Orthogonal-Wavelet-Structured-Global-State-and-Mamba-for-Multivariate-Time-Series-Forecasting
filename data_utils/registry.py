@@ -13,6 +13,8 @@ DATASET_ALIASES = {
     "exchange": "Exchange",
     "exchange_rate": "Exchange",
     "weather": "Weather",
+    "urban_power": "UrbanPower",
+    "urbanpower": "UrbanPower",
 }
 
 DATASET_FILES = {
@@ -22,6 +24,7 @@ DATASET_FILES = {
     "ETTm2": "ETTm2.csv",
     "Exchange": "exchange.csv",
     "Weather": "weather.csv",
+    "UrbanPower": "urban_power.csv",
 }
 
 DATASET_FREQUENCIES = {
@@ -31,6 +34,7 @@ DATASET_FREQUENCIES = {
     "ETTm2": "15min",
     "Exchange": "d",
     "Weather": "10min",
+    "UrbanPower": "h",
 }
 
 

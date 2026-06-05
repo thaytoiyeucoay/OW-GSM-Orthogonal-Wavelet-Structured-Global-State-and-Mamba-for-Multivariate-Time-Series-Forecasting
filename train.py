@@ -35,6 +35,7 @@ PAPER_DATASET_CONFIGS = {
     "ETTm1": {"lr": 5e-4, "weight_decay": 5e-5, "dropout": 0.4, "affine": True},
     "ETTm2": {"lr": 5e-4, "weight_decay": 5e-5, "dropout": 0.4, "affine": True},
     "Weather": {"lr": 1e-4, "weight_decay": 5e-5, "dropout": 0.4, "affine": True},
+    "UrbanPower": {"lr": 1e-4, "weight_decay": 5e-5, "dropout": 0.4, "affine": True},
     "Exchange": {"lr": 5e-4, "weight_decay": 0.35, "dropout": 0.55, "affine": False},
 }
 
@@ -539,6 +540,7 @@ def main() -> None:
     config = build_experiment_config({**file_overrides, **cli_overrides})
     if args.print_config:
         print(json.dumps(asdict(config), indent=2))
+        return
     train_model(config)
 
 

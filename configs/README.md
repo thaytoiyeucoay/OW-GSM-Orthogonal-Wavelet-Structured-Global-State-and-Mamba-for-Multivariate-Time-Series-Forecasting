@@ -6,6 +6,7 @@ Examples:
 
 ```bash
 python train.py --config configs/owgsm/paper.json
+python train.py --config configs/owgsm/urban_power.json
 python train.py --config configs/patchtst/base.json --dataset Weather --pred_len 192
 ```
 
