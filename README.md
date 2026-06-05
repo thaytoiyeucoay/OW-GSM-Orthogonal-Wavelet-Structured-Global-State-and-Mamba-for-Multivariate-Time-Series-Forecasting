@@ -4,11 +4,6 @@ Official repository for **OW-GSM: Orthogonal Wavelet-Structured Global State and
 
 OW-GSM targets long-horizon multivariate time-series forecasting with a learnable orthogonal wavelet split, a structured global state branch, and a lightweight Mamba-style detail branch. The repository now includes the OW-GSM implementation, unified data loading, compact in-repo baselines, and benchmark datasets.
 
-## News
-
-- **2026-05-25:** Added OW-GSM training code, unified benchmark data loader, and baseline model registry.
-- **2026-05-25:** Dataset-first repository initialized with ETT, Exchange, and Weather benchmarks.
-
 ## Contents
 
 - [Overview](#overview)
@@ -20,7 +15,6 @@ OW-GSM targets long-horizon multivariate time-series forecasting with a learnabl
 - [Datasets](#datasets)
 - [Benchmark Protocol](#benchmark-protocol)
 - [Reproducibility Checklist](#reproducibility-checklist)
-- [Citation](#citation)
 - [Acknowledgements](#acknowledgements)
 - [References](#references)
 - [License](#license)
@@ -339,50 +333,6 @@ When adding new results, include:
 - Full MSE and MAE table.
 - Commit hash for the released code.
 
-## Citation
-
-Please cite OW-GSM once the paper citation is available:
-
-```bibtex
-@misc{owgsm2026,
-  title  = {OW-GSM: Orthogonal Wavelet-Structured Global State and Mamba-Style Forecasting},
-  author = {OW-GSM Authors},
-  year   = {2026},
-  note   = {Citation will be updated after publication}
-}
-```
-
-If you use the datasets shipped in this repository, also cite the corresponding original benchmark papers:
-
-```bibtex
-@inproceedings{zhou2021informer,
-  title     = {Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting},
-  author    = {Zhou, Haoyi and Zhang, Shanghang and Peng, Jieqi and Zhang, Shuai and Li, Jianxin and Xiong, Hui and Zhang, Wancai},
-  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
-  volume    = {35},
-  number    = {12},
-  pages     = {11106--11115},
-  year      = {2021}
-}
-
-@inproceedings{lai2018lstnet,
-  title     = {Modeling Long- and Short-Term Temporal Patterns with Deep Neural Networks},
-  author    = {Lai, Guokun and Chang, Wei-Cheng and Yang, Yiming and Liu, Hanxiao},
-  booktitle = {The 41st International ACM SIGIR Conference on Research and Development in Information Retrieval},
-  pages     = {95--104},
-  year      = {2018}
-}
-
-@inproceedings{wu2021autoformer,
-  title     = {Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting},
-  author    = {Wu, Haixu and Xu, Jiehui and Wang, Jianmin and Long, Mingsheng},
-  booktitle = {Advances in Neural Information Processing Systems},
-  volume    = {34},
-  pages     = {22419--22430},
-  year      = {2021}
-}
-```
-
 ## Acknowledgements
 
 This repository uses standard public benchmarks from the long-term time-series forecasting literature:
@@ -404,7 +354,7 @@ We also acknowledge the official implementations of iTransformer, PatchTST, DLin
 - TimeKAN: https://github.com/huangst21/TimeKAN
 - TimeXer: https://github.com/thuml/TimeXer
 - FEDformer: https://github.com/MAZiqing/FEDformer
-- Max Planck Jena Beutenberg weather station: https://www.bgc-jena.mpg.de/en/servicegroups/fieldexperiements/locations/beutenberg
+- Original Weather station source: Jena Beutenberg station operated by the Max Planck Institute for Biogeochemistry, used as the upstream source for the public Weather benchmark distributed with Autoformer: https://www.bgc-jena.mpg.de/en/servicegroups/fieldexperiements/locations/beutenberg
 
 ## License
 
