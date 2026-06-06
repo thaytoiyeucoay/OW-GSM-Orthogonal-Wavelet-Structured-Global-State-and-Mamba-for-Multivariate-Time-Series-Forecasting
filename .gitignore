@@ -35,7 +35,6 @@ run_experiments.py
 
 # Generated analysis figures and external reference PDFs
 figures/*training*.png
-figures/*_720_*.png
 figures/*prompt*.png
 dataset/*.pdf
 
